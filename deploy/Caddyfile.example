@@ -1,0 +1,4 @@
+# Replace the hostname. Only proxy the public download service.
+download.example.com {
+    reverse_proxy 127.0.0.1:18080
+}

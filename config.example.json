@@ -1,0 +1,12 @@
+{
+  "download_host": "0.0.0.0",
+  "download_port": 18080,
+  "admin_host": "127.0.0.1",
+  "admin_port": 18081,
+  "public_url": "http://localhost:18080",
+  "cookie_secure": false,
+  "data_dir": "data",
+  "max_downloads": 64,
+  "session_hours": 12,
+  "history_days": 90
+}
