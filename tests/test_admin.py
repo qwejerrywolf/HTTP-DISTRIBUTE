@@ -81,3 +81,16 @@ def test_protected_data(env):
     ctx,a,d,_,_=env
     assert a.get('/api/browse',params={'path':str(ctx.db.directory)}).status_code==400
     assert a.post('/api/links',json={'path':str(ctx.db.path)}).status_code==400
+
+
+def test_public_admin_option_keeps_auth_csrf_and_isolation(env):
+    ctx,a,d,root,f=env
+    ctx.config.admin_host='0.0.0.0'
+    ctx.config.allow_public_admin=True
+    ctx.config.validate()
+    with TestClient(create_admin(ctx)) as anon:
+        assert anon.get('/api/links').status_code==401
+        assert anon.post('/api/links',json={'path':str(f)},headers={'x-httpd-request':'1'}).status_code==401
+    assert a.get('/api/settings').json()['allow_public_admin'] is True
+    assert a.post('/api/links',json={'path':str(f)},headers={'x-csrf-token':'bad'}).status_code==403
+    assert d.get('/api/links').status_code==404

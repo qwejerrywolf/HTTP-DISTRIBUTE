@@ -97,7 +97,9 @@ def main():
             ctx.auth.initialize(username, password)
             del password
         print(f'公网下载监听 {config.download_host}:{config.download_port}')
-        print(f'管理界面 http://{config.admin_host}:{config.admin_port} （仅回环/Tailscale）')
+        scope = '允许任意本机 IP 监听，仍需管理员登录' if config.allow_public_admin else '仅回环/Tailscale'
+        admin_address = f'[{config.admin_host}]' if ':' in config.admin_host else config.admin_host
+        print(f'管理监听 http://{admin_address}:{config.admin_port} （{scope}）')
         asyncio.run(serve(ctx))
     finally:
         ctx.close()

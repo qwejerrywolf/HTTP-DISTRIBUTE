@@ -13,6 +13,7 @@ class Config:
     download_port: int = 18080
     admin_host: str = '127.0.0.1'
     admin_port: int = 18081
+    allow_public_admin: bool = False
     public_url: str = 'http://localhost:18080'
     cookie_secure: bool = False
     data_dir: str = 'data'
@@ -21,10 +22,12 @@ class Config:
     history_days: int = 90
 
     def validate(self):
+        if type(self.allow_public_admin) is not bool:
+            raise ValueError('allow_public_admin 必须为 JSON 布尔值 true 或 false')
         ip = ipaddress.ip_address(self.admin_host)
         tailscale = ip in ipaddress.ip_network('100.64.0.0/10') if ip.version == 4 else ip in ipaddress.ip_network('fd7a:115c:a1e0::/48')
-        if not (ip.is_loopback or tailscale):
-            raise ValueError('管理服务仅允许回环地址或 Tailscale IP')
+        if not self.allow_public_admin and not (ip.is_loopback or tailscale):
+            raise ValueError('管理服务默认仅允许回环地址或 Tailscale IP；如需其他监听地址，请设置 allow_public_admin=true')
         if not all(1 <= p <= 65535 for p in (self.download_port, self.admin_port)):
             raise ValueError('端口必须为 1..65535')
         if self.download_port == self.admin_port:

@@ -44,8 +44,9 @@ python main.py
 |---|---|---|
 | `download_host` | `0.0.0.0` | 下载监听；IPv6 可设为 `::`，双栈行为取决于 Windows 网络栈 |
 | `download_port` | `18080` | 下载端口 |
-| `admin_host` | `127.0.0.1` | 仅允许回环或 Tailscale 地址段，拒绝公网/通配地址 |
+| `admin_host` | `127.0.0.1` | 默认仅允许回环或 Tailscale 地址；开启下方开关后可填写通配/局域网/本机公网 IP |
 | `admin_port` | `18081` | 管理端口，必须与下载端口不同 |
+| `allow_public_admin` | `false` | 设为 JSON 布尔值 `true`，允许管理服务绑定其他本机 IP 或 `0.0.0.0` / `::`；不取消登录或 CSRF |
 | `public_url` | `http://localhost:18080` | 买家下载根地址，部署后必须改成买家可访问地址 |
 | `cookie_secure` | `false` | 本机 HTTP 为 false；管理端经 HTTPS 访问时设为 true |
 | `data_dir` | `data` | 数据目录，相对当前工作目录；服务部署建议使用绝对路径 |
@@ -59,7 +60,19 @@ python main.py
 
 也可直接在“下载链接”页顶部修改**复制链接默认前缀**，或在创建成功窗口点“修改默认前缀”。支持域名、IPv4、`[IPv6]` 及端口；省略协议时使用 `http://`，HTTPS 需明确填写。所有复制按钮读取最新前缀，保存后重启仍保留，不改变分享令牌或本机监听地址。文件管理器、链接列表和买家目录页提供文本、代码、图片、音频、视频、PDF、Office 文档及压缩文件分类图标，未知格式使用普通文件图标。
 
-不要将管理端口映射到公网。两个端口拥有独立路由表，公网端没有 `/api/*`、登录页面、管理静态文件或 OpenAPI 文档。
+默认不开放公网管理。若需要管理服务同时接受局域网、Tailscale 或公网接口连接，可在实际 `config.json` 中设置：
+
+```json
+{
+  "admin_host": "0.0.0.0",
+  "admin_port": 18081,
+  "allow_public_admin": true
+}
+```
+
+将这些字段合并到现有配置，保留其他设置，然后重启 `python main.py`。`0.0.0.0` 表示监听所有本机 IPv4 网卡，浏览器使用 `http://服务器的局域网或Tailscale-IP:18081/`，不要把 `0.0.0.0` 当作远端地址。IPv6 监听可设为 `::`。填写具体 IP 时该地址必须属于服务器本机。
+
+该开关只改变允许的监听地址，不修改 NAT 转发、Windows 防火墙或 Tailscale 策略，也不会自动重启服务。HTTP 访问保持 `cookie_secure=false`；经 HTTPS 管理时设为 `true`。关闭开关时需要同时将 `admin_host` 改回回环或 Tailscale IP。两个端口仍拥有独立路由表，下载端不会因此出现管理 API。
 
 ## 3. Tailscale 管理
 
@@ -82,7 +95,7 @@ tailscale serve status
 tailscale ip -4
 ```
 
-将输出地址（例如 `100.80.90.100`）填入 `admin_host`，然后通过 `http://100.80.90.100:18081` 访问。HTTP 模式下 `cookie_secure=false`；传输由 Tailscale 隧道加密。不要填写 `0.0.0.0` 或普通局域网地址，程序会拒绝启动。100.64.0.0/10 和 Tailscale IPv6 范围只是绑定地址校验，访问控制仍由 tailnet 策略和 Windows 防火墙负责。
+将输出地址（例如 `100.80.90.100`）填入 `admin_host`，然后通过 `http://100.80.90.100:18081` 访问。HTTP 模式下 `cookie_secure=false`；传输由 Tailscale 隧道加密。如果需要监听 `0.0.0.0` 或普通局域网地址，必须同时设置 `allow_public_admin=true`。100.64.0.0/10 和 Tailscale IPv6 范围只是绑定地址校验，访问控制仍由 tailnet 策略和 Windows 防火墙负责。
 
 ## 4. 公网 HTTPS、路由器与防火墙
 

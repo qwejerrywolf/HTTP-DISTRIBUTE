@@ -199,7 +199,8 @@ def create_admin(ctx):
     def settings():
         return dict(public_url=ctx.db.setting('public_url', ctx.config.public_url), download_host=ctx.config.download_host,
                     download_port=ctx.config.download_port, admin_host=ctx.config.admin_host, admin_port=ctx.config.admin_port,
-                    cookie_secure=ctx.config.cookie_secure, max_downloads=ctx.config.max_downloads, history_days=ctx.config.history_days)
+                    cookie_secure=ctx.config.cookie_secure, max_downloads=ctx.config.max_downloads, history_days=ctx.config.history_days,
+                    allow_public_admin=ctx.config.allow_public_admin)
 
     @api.put('/settings')
     def save_settings(body: Settings):
