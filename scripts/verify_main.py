@@ -57,6 +57,7 @@ def main():
                     assert client.get(admin_base+'/api/links').status_code==401
                 if os.environ.get('HTTPD_NODE'):
                     subprocess.run([os.environ['HTTPD_NODE'],'scripts/verify_browser.cjs'],cwd=ROOT,env=child_env,check=True)
+                    subprocess.run([os.environ['HTTPD_NODE'],'scripts/verify_clipboard.cjs'],cwd=ROOT,env=child_env,check=True)
                 print('实际 main.py 双端口启动及路由隔离：通过')
                 duplicate=subprocess.run([sys.executable,'main.py'],cwd=ROOT,env=child_env,capture_output=True,timeout=10)
                 assert duplicate.returncode!=0,'相同数据目录重复启动未被拒绝'

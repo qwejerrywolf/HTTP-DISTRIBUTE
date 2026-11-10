@@ -153,6 +153,8 @@ New-NetFirewallRule -DisplayName "文件分发 HTTPS" -Direction Inbound -Action
 
 令牌为 32 随机字节编码出的 43 字符 URL-safe 字符串。URL 是持有即授权的凭据，同一对象可生成多个独立链接。不要发布到公共搜索引擎或日志。
 
+“复制链接/地址/完整路径”支持普通 HTTP（包括 Tailscale IP 或域名）：HTTPS/localhost 优先使用 Clipboard API，普通 HTTP 或 API 被拒绝时使用选中文本的兼容复制方式。若浏览器同时禁用两种方式，才提示 Ctrl+C 手动复制。兼容方式使用已弃用但仍可用的 `execCommand('copy')`，实际支持取决于浏览器；参考 [Clipboard API](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText) 和 [execCommand](https://developer.mozilla.org/en-US/docs/Web/API/Document/execCommand)。
+
 文件链接直接下载；文件夹链接打开只读动态目录，可浏览子文件夹、查看元数据、复制和下载单个文件。文件夹分享会自动包含其有效期内新增的普通文件，请明确理解动态目录授权。
 
 下载链接页提供搜索/筛选/排序、状态统计、完整路径查看、复制 URL、编辑显示名称与备注、修改过期时间、续期、启用/禁用、删除、访问记录，以及确认后批量禁用/删除/续期。编辑过期时间保留原 URL。删除仅撤销授权，不删除磁盘内容。

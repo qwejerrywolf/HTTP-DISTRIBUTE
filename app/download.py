@@ -4,6 +4,7 @@ import html
 import os
 import re
 import time
+from pathlib import Path
 from contextlib import asynccontextmanager
 from urllib.parse import quote, urlencode
 
@@ -14,7 +15,7 @@ from starlette.responses import FileResponse
 from starlette.responses import MalformedRangeHeader
 from app.filesystem import identity, change_time
 
-FOLDER_SCRIPT = "document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',async()=>{const i=b.previousElementSibling;i.select();try{await navigator.clipboard.writeText(i.value);b.textContent='已复制';}catch{b.textContent='请按 Ctrl+C';}}));"
+FOLDER_SCRIPT = (Path(__file__).parent / 'static' / 'clipboard.js').read_text('utf-8') + "\ndocument.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',async()=>{const i=b.previousElementSibling;if(await copyToClipboard(i.value)){b.textContent='已复制';}else{i.focus();i.select();b.textContent='请按 Ctrl+C 复制';}}));"
 FOLDER_CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-" + base64.b64encode(hashlib.sha256(FOLDER_SCRIPT.encode()).digest()).decode() + "'; base-uri 'none'; frame-ancestors 'none'"
 
 
