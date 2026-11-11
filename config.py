@@ -20,8 +20,12 @@ class Config:
     max_downloads: int = 64
     session_hours: int = 12
     history_days: int = 90
+    geoip_enabled: bool = True
+    geoip_database: str = ''  # Accepted for compatibility; no longer used.
 
     def validate(self):
+        if type(self.geoip_enabled) is not bool:
+            raise ValueError('geoip_enabled 必须为 JSON 布尔值 true 或 false')
         if type(self.allow_public_admin) is not bool:
             raise ValueError('allow_public_admin 必须为 JSON 布尔值 true 或 false')
         ip = ipaddress.ip_address(self.admin_host)

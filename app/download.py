@@ -88,6 +88,7 @@ class DownloadResponse(FileResponse):
             outcome = 'interrupted'
             raise ConnectionError('文件传输中断') from None
         finally:
+            self.ctx.monitor.stop(key)
             with anyio.CancelScope(shield=True):
                 if self.file:
                     await anyio.to_thread.run_sync(self.file.close)

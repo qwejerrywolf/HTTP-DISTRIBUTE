@@ -9,5 +9,6 @@
   "data_dir": "data",
   "max_downloads": 64,
   "session_hours": 12,
-  "history_days": 90
+  "history_days": 90,
+  "geoip_enabled": true
 }

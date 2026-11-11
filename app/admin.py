@@ -191,16 +191,14 @@ def create_admin(ctx):
 
     @api.get('/requests')
     def requests(link_id: int | None = None, page: int = Query(1, ge=1)):
-        clause = ' WHERE link_id=?' if link_id is not None else ''
-        args = (link_id,) if link_id is not None else ()
-        return ctx.db.all('SELECT * FROM requests' + clause + ' ORDER BY id DESC LIMIT 100 OFFSET ?', (*args, (page-1)*100))
+        return ctx.monitor.history(link_id, page)
 
     @api.get('/settings')
     def settings():
         return dict(public_url=ctx.db.setting('public_url', ctx.config.public_url), download_host=ctx.config.download_host,
                     download_port=ctx.config.download_port, admin_host=ctx.config.admin_host, admin_port=ctx.config.admin_port,
                     cookie_secure=ctx.config.cookie_secure, max_downloads=ctx.config.max_downloads, history_days=ctx.config.history_days,
-                    allow_public_admin=ctx.config.allow_public_admin)
+                    allow_public_admin=ctx.config.allow_public_admin, geoip=ctx.geoip.status())
 
     @api.put('/settings')
     def save_settings(body: Settings):

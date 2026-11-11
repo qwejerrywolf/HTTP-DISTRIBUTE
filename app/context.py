@@ -6,6 +6,7 @@ from app.filesystem import Filesystem
 from app.auth import Auth
 from app.links import Links, public_url
 from app.monitor import Monitor
+from app.geolocation import GeoLocator
 
 
 class Context:
@@ -17,7 +18,8 @@ class Context:
         self.fs_lock = threading.RLock()
         self.auth = Auth(self.db, config)
         self.links = Links(self)
-        self.monitor = Monitor(self.db, config.max_downloads)
+        self.geoip = GeoLocator(config.geoip_enabled)
+        self.monitor = Monitor(self.db, config.max_downloads, self.geoip)
         from app.operations import Operations
         self.operations = Operations(self)
         from app.file_changes import FileChanges
@@ -25,6 +27,7 @@ class Context:
 
     def close(self):
         self.operations.close()
+        self.geoip.close()
 
     @contextmanager
     def authorize_mutation(self):
