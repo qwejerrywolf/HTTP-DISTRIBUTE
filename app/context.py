@@ -7,6 +7,7 @@ from app.auth import Auth
 from app.links import Links, public_url
 from app.monitor import Monitor
 from app.geolocation import GeoLocator
+from app.ip_rules import IPRules
 
 
 class Context:
@@ -18,8 +19,9 @@ class Context:
         self.fs_lock = threading.RLock()
         self.auth = Auth(self.db, config)
         self.links = Links(self)
-        self.geoip = GeoLocator(config.geoip_enabled)
-        self.monitor = Monitor(self.db, config.max_downloads, self.geoip)
+        self.ip_rules = IPRules(self.db)
+        self.geoip = GeoLocator(config.geoip_enabled, self.db)
+        self.monitor = Monitor(self.db, config.max_downloads, self.geoip, self.ip_rules)
         from app.operations import Operations
         self.operations = Operations(self)
         from app.file_changes import FileChanges

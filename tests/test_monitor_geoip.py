@@ -111,7 +111,7 @@ def test_v1_migration_preserves_history(tmp_path):
         assert row['filename'] == 'old.bin'
         assert row['duration_estimated'] and row['average_speed'] == 1024
         with database.connect() as db:
-            assert db.execute('PRAGMA user_version').fetchone()[0] == 2
+            assert db.execute('PRAGMA user_version').fetchone()[0] == 3
 
 
 def test_download_api_statistics(env):

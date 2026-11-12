@@ -12,6 +12,11 @@ from config import ROOT
 from app.links import public_url
 
 
+class BlockIP(BaseModel):
+    ip: str = Field(min_length=1, max_length=80)
+    blocked: bool = True
+
+
 class Login(BaseModel):
     username: str = Field(max_length=128)
     password: str = Field(max_length=1024)
@@ -192,6 +197,21 @@ def create_admin(ctx):
     @api.get('/requests')
     def requests(link_id: int | None = None, page: int = Query(1, ge=1)):
         return ctx.monitor.history(link_id, page)
+
+    @api.get('/requests/search')
+    def search_requests(link_id: int | None = None, page: int = Query(1, ge=1, le=1000000),
+                        start: float | None = Query(None, ge=0, le=253402300799),
+                        end: float | None = Query(None, ge=0, le=253402300799),
+                        ip: str = Query('', max_length=80), location: str = Query('', max_length=200)):
+        return ctx.monitor.history(link_id, page, start, end, ip, location, True)
+
+    @api.get('/blocked-ips')
+    def blocked_ips():
+        return ctx.db.all('SELECT ip,created FROM blocked_ips ORDER BY created DESC')
+
+    @api.post('/blocked-ips')
+    def change_block(body: BlockIP):
+        return {'ip': ctx.ip_rules.change(body.ip, body.blocked), 'blocked': body.blocked}
 
     @api.get('/settings')
     def settings():

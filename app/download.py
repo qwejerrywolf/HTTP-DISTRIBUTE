@@ -125,6 +125,8 @@ def create_download(ctx):
 
     @app.api_route('/d/{token}', methods=['GET', 'HEAD'])
     async def download(token: str, request: Request, path: str = '', page: int = Query(1, ge=1, le=1000000)):
+        if ctx.ip_rules.contains(request.client.host if request.client else ''):
+            return PlainTextResponse('该 IP 已被屏蔽', 403)
         if len(token) != 43 or any(part.startswith('.httpd-') for part in path.split('/')):
             return PlainTextResponse('链接无效', 404)
         link = await anyio.to_thread.run_sync(ctx.links.authorized, token)

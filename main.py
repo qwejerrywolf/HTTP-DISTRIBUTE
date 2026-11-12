@@ -55,6 +55,7 @@ async def serve(ctx):
             await asyncio.to_thread(ctx.db.execute, 'DELETE FROM requests WHERE started<?', (time.time()-c.history_days*86400,))
             await asyncio.to_thread(ctx.db.execute, "DELETE FROM operations WHERE created<? AND status NOT IN ('queued','running')", (time.time()-c.history_days*86400,))
             await asyncio.to_thread(ctx.db.execute, 'DELETE FROM sessions WHERE expires<?', (time.time(),))
+            await asyncio.to_thread(ctx.db.execute, 'DELETE FROM ip_locations WHERE expires<? AND NOT EXISTS (SELECT 1 FROM requests WHERE requests.ip=ip_locations.ip)', (time.time(),))
             await asyncio.sleep(3600)
 
     cleanup = asyncio.create_task(maintenance())

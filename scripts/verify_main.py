@@ -35,7 +35,10 @@ def main():
         config=dict(download_host='127.0.0.1',download_port=download_port,admin_host='127.0.0.1',admin_port=admin_port,public_url=public_base,data_dir=str(root/'data'))
         cfg=root/'config.json';cfg.write_text(json.dumps(config),encoding='utf-8')
         ctx=Context(Config(**config));password=secrets.token_urlsafe(24)
-        ctx.auth.initialize('browser-test',password);ctx.close()
+        ctx.auth.initialize('browser-test',password)
+        ctx.db.execute("INSERT INTO requests(started,ended,ip,filename,method,status,bytes,outcome,duration) VALUES (?,?,'192.0.2.25','机房提示测试.bin','GET',200,100,'complete',1)", (time.time()-1,time.time()))
+        ctx.geoip._save('192.0.2.25','测试 IDC机房',86400)
+        ctx.close()
         child_env={**os.environ,'HTTPD_CONFIG':str(cfg),'HTTPD_TEST_PASSWORD':password,'HTTPD_TEST_FILES':str(files),'PYTHONUTF8':'1'}
         child_env.update(HTTPD_TEST_ADMIN_URL=admin_base, HTTPD_TEST_PUBLIC_URL=public_base)
         child_env.pop('HTTPD_DATA',None)

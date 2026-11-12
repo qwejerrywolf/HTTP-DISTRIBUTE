@@ -11,21 +11,47 @@ import httpx
 class GeoLocator:
     API_URL = 'https://ip.zxinc.org/api.php'
 
-    def __init__(self, enabled=True):
+    def __init__(self, enabled=True, db=None):
         self.enabled = enabled
+        self.db = db
         self.lock = threading.RLock()
         self.cache = OrderedDict()
         self.pending = set()
         self.jobs = queue.Queue(maxsize=128)
         self.closed = threading.Event()
         self.worker = None
+        self.next_backfill = 0
 
     def status(self):
         return dict(state='online' if self.enabled else 'disabled',
                     message='在线属地查询已启用（公网 IP 将发送至 ip.zxinc.org）' if self.enabled else 'IP 属地在线查询已关闭',
                     provider='ip.zxinc.org', url=self.API_URL)
 
+    def start_backfill(self):
+        if self.enabled and self.db and not self.closed.is_set():
+            with self.lock:
+                if self.worker is None:
+                    self.worker = threading.Thread(target=self._run, name='geoip-lookup', daemon=True)
+                    self.worker.start()
+
+    def _save(self, ip, location, ttl):
+        if self.db:
+            self.db.execute('INSERT INTO ip_locations VALUES (?,?,?) ON CONFLICT(ip) DO UPDATE SET location=excluded.location,expires=excluded.expires',
+                            (ip, location, time.time() + ttl))
+
     def lookup(self, value):
+        if self.db:
+            row = self.db.one('SELECT location,expires FROM ip_locations WHERE ip=?', (value,))
+            if row and (row['expires'] > time.time() or not self.enabled):
+                return row['location']
+        result = self._lookup(value)
+        if result in ('本机回环', 'Tailscale / 共享地址段', 'Tailscale 内网', '链路本地地址', '特殊用途地址', '内网 / 非公网地址', '未知 IP'):
+            self._save(value, result, 86400 * 365)
+        elif self.db and row and result == '属地查询中…':
+            return row['location']
+        return result
+
+    def _lookup(self, value):
         try:
             ip = ipaddress.ip_address(value.split('%', 1)[0])
             if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
@@ -46,7 +72,7 @@ class GeoLocator:
             return '内网 / 非公网地址'
         if not self.enabled:
             return '属地查询已关闭'
-        key = str(ip)
+        key = value
         with self.lock:
             cached = self.cache.get(key)
             if cached and cached[1] > time.monotonic():
@@ -67,7 +93,7 @@ class GeoLocator:
 
     def _fetch(self, ip):
         with httpx.Client(timeout=3, follow_redirects=False, headers={'User-Agent': 'HTTP-DISTRIBUTE/1.0'}) as client:
-            with client.stream('GET', self.API_URL, params={'type': 'json', 'ip': ip}) as response:
+            with client.stream('GET', self.API_URL, params={'type': 'json', 'ip': str(ipaddress.ip_address(ip.split('%', 1)[0]))}) as response:
                 response.raise_for_status()
                 body = bytearray()
                 for chunk in response.iter_bytes():
@@ -88,6 +114,15 @@ class GeoLocator:
             try:
                 key = self.jobs.get(timeout=.2)
             except queue.Empty:
+                if self.db and self.enabled and time.monotonic() >= self.next_backfill:
+                    try:
+                        row = self.db.one('SELECT r.ip FROM requests r LEFT JOIN ip_locations g ON g.ip=r.ip WHERE g.ip IS NULL OR g.expires<? GROUP BY r.ip LIMIT 1', (time.time(),))
+                        if row:
+                            self.lookup(row['ip'])
+                        else:
+                            self.next_backfill = time.monotonic() + 30
+                    except Exception:
+                        self.closed.wait(1)
                 continue
             try:
                 location, ttl = self._fetch(key), 86400
@@ -99,6 +134,10 @@ class GeoLocator:
                 self.pending.discard(key)
                 while len(self.cache) > 4096:
                     self.cache.popitem(last=False)
+            try:
+                self._save(key, location, ttl)
+            except Exception:
+                pass  # A busy database must not terminate the background worker.
             self.jobs.task_done()
             # Bound upstream request frequency, including distinct historical IPs.
             self.closed.wait(1)

@@ -146,7 +146,8 @@ def test_real_upload_disconnect_cleans_staging(live):
     try:
         sock.sendall(headers.encode()+b'a'*10000)
         deadline=time.time()+5
-        while not list(root.glob('.httpd-upload-*')):
+        # Staging creation precedes registration; wait for both before disconnecting.
+        while not list(root.glob('.httpd-upload-*')) or not ctx.file_changes.uploads:
             assert time.time()<deadline
             time.sleep(.02)
     finally:sock.close()
