@@ -32,7 +32,7 @@ def main():
         for name in ('笔记.txt', '照片.JPG', '音乐.mp3', '影片.mkv'):
             (files/name).write_bytes(b'icon verification fixture')
         (files/'分享目录').mkdir();(files/'分享目录'/'说明.txt').write_text('单个文件下载与断点续传',encoding='utf-8')
-        config=dict(download_host='127.0.0.1',download_port=download_port,admin_host='127.0.0.1',admin_port=admin_port,public_url=public_base,data_dir=str(root/'data'))
+        config=dict(download_host='0.0.0.0' if os.environ.get('HTTPD_TEST_DUAL_STACK') else '127.0.0.1',download_port=download_port,admin_host='127.0.0.1',admin_port=admin_port,public_url=public_base,data_dir=str(root/'data'))
         cfg=root/'config.json';cfg.write_text(json.dumps(config),encoding='utf-8')
         ctx=Context(Config(**config));password=secrets.token_urlsafe(24)
         ctx.auth.initialize('browser-test',password)
@@ -58,6 +58,10 @@ def main():
                         time.sleep(.1)
                     assert client.get(public_base+'/api/links').status_code==404
                     assert client.get(admin_base+'/api/links').status_code==401
+                    if os.environ.get('HTTPD_TEST_DUAL_STACK'):
+                        with httpx.Client(trust_env=False,timeout=2) as ipv6:
+                            assert ipv6.get(f'http://[::1]:{download_port}/api/links').status_code==404
+                        print('实际 main.py 同一下载端口 IPv4 / IPv6 响应：通过')
                 if os.environ.get('HTTPD_NODE'):
                     subprocess.run([os.environ['HTTPD_NODE'],'scripts/verify_browser.cjs'],cwd=ROOT,env=child_env,check=True)
                     subprocess.run([os.environ['HTTPD_NODE'],'scripts/verify_clipboard.cjs'],cwd=ROOT,env=child_env,check=True)

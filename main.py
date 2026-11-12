@@ -5,7 +5,6 @@ import getpass
 import logging
 from logging.handlers import RotatingFileHandler
 import signal
-import socket
 import sys
 import time
 
@@ -14,6 +13,7 @@ from config import load_config
 from app.context import Context
 from app.admin import create_admin
 from app.download import create_download
+from app.listeners import bind_listeners
 
 
 class ManagedServer(uvicorn.Server):
@@ -33,21 +33,18 @@ async def serve(ctx):
     for sig in (signal.SIGINT, signal.SIGTERM, *([signal.SIGBREAK] if sys.platform == 'win32' else [])):
         signal.signal(sig, lambda *_: loop.call_soon_threadsafe(stop.set))
     sockets = []
+    listener_groups = []
     try:
-        for host, port in ((c.download_host, c.download_port), (c.admin_host, c.admin_port)):
-            sock = socket.socket(socket.AF_INET6 if ':' in host else socket.AF_INET, socket.SOCK_STREAM)
-            sockets.append(sock)
-            if sys.platform == 'win32':
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
-            sock.bind((host, port))
-            sock.listen(128)
-            sock.setblocking(False)
+        for host, port, dual in ((c.download_host, c.download_port, True), (c.admin_host, c.admin_port, False)):
+            group = bind_listeners(host, port, dual_stack=dual)
+            listener_groups.append(group)
+            sockets.extend(group)
     except OSError:
         for sock in sockets:
             sock.close()
-        log.error('无法绑定服务端口，请检查监听地址、权限或端口占用')
+        log.error('无法绑定服务端口，请检查监听地址、权限或端口占用；下载通配监听需要 IPv4 和 IPv6 均可用')
         raise
-    tasks = [asyncio.create_task(s.serve(sockets=[sock])) for s, sock in zip(servers, sockets)]
+    tasks = [asyncio.create_task(s.serve(sockets=group)) for s, group in zip(servers, listener_groups)]
     stopping = asyncio.create_task(stop.wait())
 
     async def maintenance():
@@ -97,7 +94,8 @@ def main():
                 raise ValueError('两次密码不一致')
             ctx.auth.initialize(username, password)
             del password
-        print(f'公网下载监听 {config.download_host}:{config.download_port}')
+        download_hosts = ['0.0.0.0', '::'] if config.download_host in ('0.0.0.0', '::') else [config.download_host]
+        print('公网下载监听 ' + ' / '.join(f'[{h}]:{config.download_port}' if ':' in h else f'{h}:{config.download_port}' for h in download_hosts))
         scope = '允许任意本机 IP 监听，仍需管理员登录' if config.allow_public_admin else '仅回环/Tailscale'
         admin_address = f'[{config.admin_host}]' if ':' in config.admin_host else config.admin_host
         print(f'管理监听 http://{admin_address}:{config.admin_port} （{scope}）')
