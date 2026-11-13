@@ -7,7 +7,7 @@ async function deleteSelected(){
  const paths=[...state.selected].map(i=>state.rows[i].path);
  if(!paths.length)throw new Error('请先选择要删除的文件或文件夹');
  const preview=await post('/files/delete-preview',{paths});
- modal(`<h2>确认永久删除 ${preview.items.length} 个选中对象？</h2><p class="error">将直接删除磁盘上的文件和文件夹，不进入回收站。文件夹内的所有内容也会删除。</p><div class="delete-summary">包含 ${preview.files} 个文件、${preview.folders} 个文件夹 · ${size(preview.bytes)}</div><ul class="delete-paths">${preview.items.map(r=>`<li>${r.icon_svg}<strong>${esc(r.name)}</strong><span>${esc(r.path)}</span></li>`).join('')}</ul><p>共用分享的对象需先删除关联授权。确认后如内容发生变化，任务会停止并提示重新确认。</p><div class="modal-actions"><button id="cancel-file-delete">取消</button><button id="confirm-file-delete" class="danger">确认永久删除</button></div>`);
+ modal(`<h2>确认永久删除 ${preview.items.length} 个选中对象？</h2><p class="error">将直接删除磁盘上的文件和文件夹，不进入回收站。文件夹内的所有内容也会删除。</p><div class="delete-summary">包含 ${preview.files} 个文件、${preview.folders} 个文件夹 · ${fileSize(preview.bytes)}</div><ul class="delete-paths">${preview.items.map(r=>`<li>${r.icon_svg}<strong>${esc(r.name)}</strong><span>${esc(r.path)}</span></li>`).join('')}</ul><p>共用分享的对象需先删除关联授权。确认后如内容发生变化，任务会停止并提示重新确认。</p><div class="modal-actions"><button id="cancel-file-delete">取消</button><button id="confirm-file-delete" class="danger">确认永久删除</button></div>`);
  $('#cancel-file-delete').onclick=closeModal;
  $('#confirm-file-delete').onclick=()=>run(async()=>{
   $('#confirm-file-delete').disabled=true;
@@ -22,13 +22,13 @@ $('#upload-files').onclick=()=>run(chooseUpload);
 $('#upload-input').onchange=()=>run(()=>{
  const files=[...$('#upload-input').files];if(!files.length)return;
  const directory=state.path;
- modal(`<h2>上传 ${files.length} 个文件</h2><div class="object-card"><strong>目标目录</strong><small>${esc(directory)}</small></div><ul class="delete-paths">${files.map(f=>`<li><strong>${esc(f.name)}</strong><span>${size(f.size)}</span></li>`).join('')}</ul><label>同名冲突处理<select id="upload-conflict"><option value="cancel">跳过并报告失败，不覆盖</option><option value="rename">自动重命名</option><option value="overwrite">覆盖同名普通文件</option></select></label><p>文件逐个上传，完整接收后才写入目标名称。已关联分享的文件不能被覆盖。</p><div class="modal-actions"><button id="upload-start" class="primary">开始上传</button></div>`);
+ modal(`<h2>上传 ${files.length} 个文件</h2><div class="object-card"><strong>目标目录</strong><small>${esc(directory)}</small></div><ul class="delete-paths">${files.map(f=>`<li><strong>${esc(f.name)}</strong><span>${fileSize(f.size)}</span></li>`).join('')}</ul><label>同名冲突处理<select id="upload-conflict"><option value="cancel">跳过并报告失败，不覆盖</option><option value="rename">自动重命名</option><option value="overwrite">覆盖同名普通文件</option></select></label><p>文件逐个上传，完整接收后才写入目标名称。已关联分享的文件不能被覆盖。</p><div class="modal-actions"><button id="upload-start" class="primary">开始上传</button></div>`);
  $('#upload-start').onclick=()=>{const conflict=$('#upload-conflict').value;closeModal();run(()=>startUploads(files,directory,conflict));};
 });
 function renderUploads(){
  if(!uploadBatch)return;
  $('#upload-panel').hidden=false;
- $('#upload-list').innerHTML=uploadBatch.items.map(item=>`<div class="task-row"><div class="task-label"><strong>${esc(item.file.name)}</strong><small>${esc(item.message)} · ${size(item.done)} / ${size(item.file.size)}</small></div><progress max="${Math.max(item.file.size,1)}" value="${item.status==='completed'?Math.max(item.file.size,1):item.done}"></progress>${badge(item.status)}</div>`).join('');
+ $('#upload-list').innerHTML=uploadBatch.items.map(item=>`<div class="task-row"><div class="task-label"><strong>${esc(item.file.name)}</strong><small>${esc(item.message)} · ${fileSize(item.done)} / ${fileSize(item.file.size)}</small></div><progress max="${Math.max(item.file.size,1)}" value="${item.status==='completed'?Math.max(item.file.size,1):item.done}"></progress>${badge(item.status)}</div>`).join('');
 }
 function uploadOne(batch,item){return new Promise((resolve,reject)=>{
  const xhr=new XMLHttpRequest();batch.xhr=xhr;

@@ -19,6 +19,11 @@ FOLDER_SCRIPT = (Path(__file__).parent / 'static' / 'clipboard.js').read_text('u
 FOLDER_CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-" + base64.b64encode(hashlib.sha256(FOLDER_SCRIPT.encode()).digest()).decode() + "'; base-uri 'none'; frame-ancestors 'none'"
 
 
+def format_file_size(value):
+    unit, divisor = ('GB', 1024**3) if value >= 1024**3 else ('MB', 1024**2) if value >= 1024**2 else ('KB', 1024)
+    return f'{value / divisor:.2f} {unit}'
+
+
 class DownloadResponse(FileResponse):
     chunk_size = 256 * 1024
 
@@ -114,7 +119,7 @@ def folder_page(ctx, link, token, relative, page):
         rel = '/'.join((*parts, r['name']))
         href = esc(url(rel))
         label = '浏览' if r['kind'] == 'folder' else '下载文件'
-        size = '文件夹' if r['size'] is None else f'{r["size"]:,} B'
+        size = '文件夹' if r['size'] is None else format_file_size(r['size'])
         modified = time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(r['modified']))
         rows.append(f'<tr><td><a href="{href}">{r["icon_svg"]}{esc(r["name"])}</a></td><td>{size}</td><td>{modified}</td><td><a href="{href}">{label}</a>' + (f' · <input aria-label="文件下载地址" readonly value="{esc(ctx.db.setting("public_url", ctx.config.public_url) + url(rel))}"><button data-copy>复制地址</button>' if r['kind'] == 'file' else '') + '</td></tr>')
     return '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>文件分享</title><style>body{font:16px system-ui;background:#f4f6fb;color:#24334b;max-width:1100px;margin:50px auto;padding:24px}a{color:#285be8}table{width:100%;background:white;border-collapse:collapse;margin:24px 0}td,th{padding:16px;text-align:left;border-bottom:1px solid #e8edf4}input{width:160px}nav{display:flex;gap:10px}.file-icon{vertical-align:middle;margin-right:9px}.icon-folder{color:#c79932}.icon-text,.icon-document{color:#5289bb}.icon-code{color:#6974c8}.icon-image{color:#b86bba}.icon-audio{color:#db8b43}.icon-video{color:#8a68d1}.icon-pdf{color:#d36365}.icon-sheet{color:#359775}.icon-slides{color:#d98550}.icon-archive{color:#a58d57}</style><h1>' + esc(link['display'] or root.name) + '</h1><p>只读动态目录 · 仅支持逐个下载文件 · 下载地址可复制到支持断点续传的下载工具</p><nav>' + ' / '.join(crumbs) + '</nav><table><tr><th>名称</th><th>大小 / 类型</th><th>修改时间</th><th>操作</th></tr>' + ''.join(rows) + '</table><nav>' + (f'<a href="{esc(url(relative, page-1))}">上一页</a>' if page > 1 else '') + f'<span>第 {page} 页 · {result["total"]} 项</span>' + (f'<a href="{esc(url(relative, page+1))}">下一页</a>' if page*100 < result['total'] else '') + '</nav></html>'
