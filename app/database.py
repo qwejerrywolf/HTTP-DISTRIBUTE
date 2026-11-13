@@ -12,7 +12,7 @@ class Database:
         with self.connect() as db:
             db.execute('PRAGMA journal_mode=WAL')
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version > 3:
+            if version > 4:
                 raise RuntimeError('数据库版本高于当前程序，拒绝降级')
             db.executescript('''
             CREATE TABLE IF NOT EXISTS admins(id INTEGER PRIMARY KEY, username TEXT UNIQUE, password TEXT NOT NULL);
@@ -37,7 +37,8 @@ class Database:
             db.execute('CREATE TABLE IF NOT EXISTS ip_locations(ip TEXT PRIMARY KEY, location TEXT NOT NULL, expires REAL NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS blocked_ips(ip TEXT PRIMARY KEY, created REAL NOT NULL)')
             db.execute('CREATE INDEX IF NOT EXISTS request_ip ON requests(ip)')
-            db.execute('PRAGMA user_version=3')
+            db.execute('CREATE TABLE IF NOT EXISTS auto_ip_actions(ip TEXT PRIMARY KEY, location TEXT NOT NULL, created REAL NOT NULL)')
+            db.execute('PRAGMA user_version=4')
             db.execute("UPDATE operations SET status='interrupted',error='服务重启；源文件保留，请检查 .httpd-* 暂存目录' WHERE status IN ('queued','running')")
 
     @contextmanager

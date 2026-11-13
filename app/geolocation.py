@@ -11,9 +11,10 @@ import httpx
 class GeoLocator:
     API_URL = 'https://ip.zxinc.org/api.php'
 
-    def __init__(self, enabled=True, db=None):
+    def __init__(self, enabled=True, db=None, on_location=None):
         self.enabled = enabled
         self.db = db
+        self.on_location = on_location
         self.lock = threading.RLock()
         self.cache = OrderedDict()
         self.pending = set()
@@ -38,8 +39,16 @@ class GeoLocator:
         if self.db:
             self.db.execute('INSERT INTO ip_locations VALUES (?,?,?) ON CONFLICT(ip) DO UPDATE SET location=excluded.location,expires=excluded.expires',
                             (ip, location, time.time() + ttl))
+        if self.on_location:
+            self.on_location(ip, location)
 
     def lookup(self, value):
+        result = self._lookup_cached(value)
+        if self.on_location:
+            self.on_location(value, result)
+        return result
+
+    def _lookup_cached(self, value):
         if self.db:
             row = self.db.one('SELECT location,expires FROM ip_locations WHERE ip=?', (value,))
             if row and (row['expires'] > time.time() or not self.enabled):

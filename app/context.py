@@ -20,12 +20,20 @@ class Context:
         self.auth = Auth(self.db, config)
         self.links = Links(self)
         self.ip_rules = IPRules(self.db)
-        self.geoip = GeoLocator(config.geoip_enabled, self.db)
+        self.geoip = GeoLocator(config.geoip_enabled, self.db, self.ip_rules.evaluate)
         self.monitor = Monitor(self.db, config.max_downloads, self.geoip, self.ip_rules)
         from app.operations import Operations
         self.operations = Operations(self)
         from app.file_changes import FileChanges
         self.file_changes = FileChanges(self)
+
+    def set_auto_block(self, enabled):
+        self.ip_rules.set_enabled(enabled)
+        if enabled:
+            for ip in self.ip_rules.active_ips():
+                self.geoip.lookup(ip)
+            self.geoip.start_backfill()
+        return self.ip_rules.status()
 
     def close(self):
         self.operations.close()

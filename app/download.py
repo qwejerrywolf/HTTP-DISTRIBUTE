@@ -14,6 +14,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 from starlette.responses import FileResponse
 from starlette.responses import MalformedRangeHeader
 from app.filesystem import identity, change_time
+from app.download_guard import DownloadGuard
 
 FOLDER_SCRIPT = (Path(__file__).parent / 'static' / 'clipboard.js').read_text('utf-8') + "\ndocument.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',async()=>{const i=b.previousElementSibling;if(await copyToClipboard(i.value)){b.textContent='已复制';}else{i.focus();i.select();b.textContent='请按 Ctrl+C 复制';}}));"
 FOLDER_CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-" + base64.b64encode(hashlib.sha256(FOLDER_SCRIPT.encode()).digest()).decode() + "'; base-uri 'none'; frame-ancestors 'none'"
@@ -127,6 +128,7 @@ def folder_page(ctx, link, token, relative, page):
 
 def create_download(ctx):
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    app.add_middleware(DownloadGuard, ctx=ctx)
 
     @app.api_route('/d/{token}', methods=['GET', 'HEAD'])
     async def download(token: str, request: Request, path: str = '', page: int = Query(1, ge=1, le=1000000)):

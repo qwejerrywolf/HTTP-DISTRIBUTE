@@ -7,9 +7,13 @@ from typing import Literal
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool
 from config import ROOT
 from app.links import public_url
+
+
+class AutoBlockPolicy(BaseModel):
+    enabled: StrictBool
 
 
 class BlockIP(BaseModel):
@@ -205,9 +209,20 @@ def create_admin(ctx):
                         ip: str = Query('', max_length=80), location: str = Query('', max_length=200)):
         return ctx.monitor.history(link_id, page, start, end, ip, location, True)
 
+    @api.get('/ip-policy')
+    def ip_policy():
+        return ctx.ip_rules.status()
+
+    @api.put('/ip-policy')
+    def set_ip_policy(body: AutoBlockPolicy):
+        return ctx.set_auto_block(body.enabled)
+
     @api.get('/blocked-ips')
     def blocked_ips():
-        return ctx.db.all('SELECT ip,created FROM blocked_ips ORDER BY created DESC')
+        rows = ctx.db.all('SELECT ip,created FROM blocked_ips ORDER BY created DESC')
+        for row in rows:
+            row['location'] = ctx.geoip.lookup(row['ip'])
+        return rows
 
     @api.post('/blocked-ips')
     def change_block(body: BlockIP):
